@@ -46,7 +46,3 @@ def run_script(script: Script):
     except Exception as e:
         return {"stdout": [], "stderr": [f"Error: {str(e)}"]}
 
-# Run FastAPI server when script is executed
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)

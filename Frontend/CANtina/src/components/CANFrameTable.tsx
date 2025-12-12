@@ -1,22 +1,12 @@
 import React from "react";
 import { useTheme } from "../ThemeContext";
+import type { CANFrame } from "../hooks/Websocket";
 
-const mockFrames = [
-  { timestamp: 0.123, pgn: 65265, canId: 0x18FEF100, data: [0, 1, 2, 3, 4, 5, 6, 7] },
-  { timestamp: 0.456, pgn: 65266, canId: 0x18FEF200, data: [7, 6, 5, 4, 3, 2, 1, 0] },
-  { timestamp: 0.456, pgn: 65266, canId: 0x18FEF300, data: [7, 6, 5, 4, 3, 2, 1, 0] },
-  { timestamp: 0.456, pgn: 65266, canId: 0x18FEF100, data: [7, 6, 5, 4, 3, 2, 1, 0] },
-  { timestamp: 0.456, pgn: 65266, canId: 0x18FEF200, data: [7, 6, 5, 4, 3, 2, 1, 0] },
-  { timestamp: 0.456, pgn: 65266, canId: 0x18FEF300, data: [7, 6, 5, 4, 3, 2, 1, 0] },
-  { timestamp: 0.456, pgn: 65266, canId: 0x18FEF100, data: [7, 6, 5, 4, 3, 2, 1, 0] },
-  { timestamp: 0.456, pgn: 65266, canId: 0x18FEF200, data: [7, 6, 5, 4, 3, 2, 1, 0] },
-  { timestamp: 0.456, pgn: 65266, canId: 0x18FEF300, data: [7, 6, 5, 4, 3, 2, 1, 0] },
-  { timestamp: 0.456, pgn: 65266, canId: 0x18FEF100, data: [7, 6, 5, 4, 3, 2, 1, 0] },
-  { timestamp: 0.456, pgn: 65266, canId: 0x18FEF200, data: [7, 6, 5, 4, 3, 2, 1, 0] },
-  { timestamp: 0.456, pgn: 65266, canId: 0x18FEF300, data: [7, 6, 5, 4, 3, 2, 1, 0] },
-];
+interface Props {
+  frames: CANFrame[];
+}
 
-export default function CANFrameTable() {
+export default function CANFrameTable({ frames }: Props) {
   const { theme } = useTheme();
 
   return (
@@ -31,7 +21,8 @@ export default function CANFrameTable() {
         overflow: "hidden",
       }}
     >
-      {/* Header */}
+
+      {/* Header Row */}
       <div
         style={{
           display: "grid",
@@ -56,33 +47,40 @@ export default function CANFrameTable() {
         ))}
       </div>
 
-      {/* Body */}
+      {/* Frame List */}
       <div
         style={{
           flex: 1,
           overflowY: "auto",
         }}
       >
-        {mockFrames.map((f, i) => (
-          <div
-            key={i}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr repeat(8, 1fr)",
-              padding: "8px",
-              borderBottom: `1px solid ${theme.border}`,
-              color: theme.textPrimary,
-              textAlign: "center",
-            }}
-          >
-            <div>{f.timestamp.toFixed(3)}</div>
-            <div>{f.pgn}</div>
-            <div>{f.canId.toString(16).toUpperCase()}</div>
-            {f.data.map((byte, j) => (
-              <div key={j}>{byte.toString(16).toUpperCase().padStart(2, "0")}</div>
-            ))}
-          </div>
-        ))}
+        {frames.map((f, i) => {
+          const pgn = (f.id >> 8) & 0xFFFF; // Simple J1939 PGN derivation
+
+          return (
+            <div
+              key={i}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr 1fr repeat(8, 1fr)",
+                padding: "8px",
+                borderBottom: `1px solid ${theme.border}`,
+                color: theme.textPrimary,
+                textAlign: "center",
+              }}
+            >
+              <div>{f.timestamp.toFixed(3)}</div>
+              <div>{pgn}</div>
+              <div>{f.id.toString(16).toUpperCase()}</div>
+
+              {f.data.map((byte, j) => (
+                <div key={j}>
+                  {byte.toString(16).toUpperCase().padStart(2, "0")}
+                </div>
+              ))}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

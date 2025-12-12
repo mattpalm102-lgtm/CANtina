@@ -6,7 +6,7 @@
   "scripts": {
     "start": "concurrently \"npm run start:react\" \"npm run start:python\"",
     "start:react": "vite",
-    "start:python": "python ../../Backend/ScriptRunner/ScriptRunner.py",
+    "start:python": "python ../../Backend/main.py",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
