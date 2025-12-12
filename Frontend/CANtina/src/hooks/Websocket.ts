@@ -5,7 +5,10 @@ export interface CANFrame {
   dlc: number;
   data: number[];
   timestamp: number;
+  _seq?: number;
 }
+
+let seq = 0;
 
 export function useWebSocket(url: string) {
   const [frames, setFrames] = useState<CANFrame[]>([]);
@@ -18,12 +21,13 @@ export function useWebSocket(url: string) {
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
-
         // Handle CAN frames
         if (msg.command === "can_frame") {
-          console.log("Received CAN frame:", msg);
-          //const frame: CANFrame = msg;
-          //setFrames(prev => [frame, ...prev].slice(0, 200));
+          const frame: CANFrame = msg.data;
+          setFrames(prev => [
+            ...prev,
+            { ...frame, _seq: seq++ }
+          ]);
         }
 
         // Handle responses / status messages if needed

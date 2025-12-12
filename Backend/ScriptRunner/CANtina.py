@@ -1,8 +1,8 @@
 # Backend/ScriptRunner/CANtina.py
 from typing import List, Dict
 import time
+import can
 
-# Example in-memory CAN bus data
 _can_bus_frames = []
 
 def inject_frame(frame: Dict):
@@ -11,7 +11,7 @@ def inject_frame(frame: Dict):
 
 def read() -> List[Dict]:
     """Return all frames currently on the bus"""
-    return _can_bus_frames.copy()
+    return can.Message(arbitration_id=0x12345678, data=[0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88], is_extended_id=False)
 
 def write(can_id: int, data: List[int]):
     """Send a CAN frame (simulated)"""

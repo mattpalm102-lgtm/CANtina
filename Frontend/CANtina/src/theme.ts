@@ -23,13 +23,13 @@ export const darkTheme: Theme = {
 };
 
 export const lightTheme: Theme = {
-  background: "#F5F5F5",
-  surface: "#FFFFFF",
-  border: "#E0E0E0",
+  background: "#d1d1d1ff",
+  surface: "#d1d1d1ff",
+  border: "#d1d1d1ff",
   textPrimary: "#121212",
   textSecondary: "#4F4F4F",
-  primary: "#6200EA",
-  secondary: "#3700B3",
-  accent: "#BB86FC",
-  success: "#00AA00",
+  primary: "#00727F",
+  secondary: "#00727F",
+  accent: "#00727F",
+  success: "#00FF00",
 };

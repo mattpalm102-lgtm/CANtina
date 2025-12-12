@@ -4,9 +4,15 @@ import type { CANFrame } from "../hooks/Websocket";
 
 interface Props {
   frames: CANFrame[];
+  enabledIds: number[];
+  setEnabledIds: React.Dispatch<React.SetStateAction<number[]>>;
 }
 
-export default function ActiveCANIDsPanel({ frames }: Props) {
+export default function ActiveCANIDsPanel({ frames,
+                                            enabledIds,
+                                            setEnabledIds,
+                                          }: Props) {
+
   const { theme } = useTheme();
 
   // Extract sorted unique CAN IDs
@@ -16,12 +22,11 @@ export default function ActiveCANIDsPanel({ frames }: Props) {
     return Array.from(set).sort((a, b) => a - b);
   }, [frames]);
 
-  // Track which IDs are toggled ON
-  const [checkedIds, setCheckedIds] = useState<number[]>([]);
-
   const toggleId = (id: number) => {
-    setCheckedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    setEnabledIds((prev) =>
+      prev.includes(id)
+        ? prev.filter((x) => x !== id)
+        : [...prev, id]
     );
   };
 
@@ -58,9 +63,10 @@ export default function ActiveCANIDsPanel({ frames }: Props) {
           >
             <input
               type="checkbox"
-              checked={checkedIds.includes(id)}
+              checked={enabledIds.includes(id)}
               onChange={() => toggleId(id)}
             />
+            
             <span
               style={{
                 marginLeft: "8px",

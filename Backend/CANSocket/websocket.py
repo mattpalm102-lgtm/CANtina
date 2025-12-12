@@ -2,11 +2,12 @@ import tornado.ioloop
 import tornado.web
 import tornado.websocket
 import json
-from CANSocket.CANInterface import connectDevice
+from tornado.ioloop import PeriodicCallback
+from CANSocket.CANInterface import connectDevice, messageStub
 
-# Store connected clients
 clients = set()
 CANDevice = None
+stub_callback = None
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
@@ -18,44 +19,80 @@ class CANWebSocket(tornado.websocket.WebSocketHandler):
         clients.add(self)
 
     def on_message(self, message):
+        global CANDevice, stub_callback
+
         print(f"Received message: {message}")
-        # Optionally broadcast received messages to all clients
         msg = json.loads(message)
+
         if msg.get("command") == "Connection":
+            data = msg.get("data", {})
             try:
                 CANDevice = connectDevice(
-                    type=msg.get("type", "peak"),
-                    baud=msg.get("baud", 500000),
-                    termination=msg.get("termination", False)
+                    type=data.get("deviceType", "peak"),
+                    baud=data.get("baudRate", 500000),
+                    termination=data.get("termination") == "120Ω"
                 )
-                CANDevice.on_receive(self.handle_can_frame)
-                
+
+                # Start sending stub message every 1000 ms
+                stub = messageStub()
+
+                if stub_callback:
+                    stub_callback.stop()
+
+                stub_callback = PeriodicCallback(
+                    lambda: broadcast_stub(stub),
+                    1000
+                )
+                stub_callback.start()
+
+                print("Stub sender started. Sending every 1 second.")
+
             except Exception as e:
                 print(f"Connection error: {e}")
-            print(f"Connection command received: {message}")
 
     def on_close(self):
         print("WebSocket closed")
         clients.remove(self)
 
     def check_origin(self, origin):
-        return True  # Allow all origins for dev purposes
-    
-    def handle_can_frame(frame):
-        """Handle incoming CAN frames and broadcast to clients."""
-        frame_dict = {
-            "id": frame.arbitration_id,
-            "data": list(frame.data),
-            "timestamp": frame.timestamp,
-            "is_extended_id": frame.is_extended_id,
-            "is_remote_frame": frame.is_remote_frame,
-        }
-        broadcast_can_frame(frame_dict)
+        return True
 
-def broadcast_can_frame(frame: dict):
-    """Send a CAN frame to all connected clients."""
-    for client in clients:
-        tornado.ioloop.IOLoop.current().add_callback(lambda: client.write_message(json.dumps(frame)))
+def send_to_frontend(data: dict):
+    """
+    Send arbitrary JSON data to all connected clients.
+    """
+    msg = json.dumps(data)
+    io_loop = tornado.ioloop.IOLoop.current()
+
+    for client in list(clients):
+        def _send(c=client):
+            try:
+                c.write_message(msg)
+            except tornado.websocket.WebSocketClosedError:
+                clients.discard(c)
+
+        io_loop.add_callback(_send)
+def broadcast_can_frame(frame):
+    """
+    Broadcast a CAN frame to all connected clients.
+    """
+    send_to_frontend(frame)
+
+def broadcast_stub(msg):
+    """
+    Convert stub message to frontend JSON format and broadcast.
+    """
+    frame_dict = {
+        "command": "can_frame",
+        "data": {
+            "id": msg.arbitration_id,
+            "data": list(msg.data),
+            "timestamp": msg.timestamp,
+            "is_extended_id": msg.is_extended_id,
+            "is_remote_frame": msg.is_remote_frame,
+        }
+    }
+    broadcast_can_frame(frame_dict)
 
 def make_app():
     return tornado.web.Application([
@@ -65,6 +102,6 @@ def make_app():
 
 if __name__ == "__main__":
     app = make_app()
-    app.listen(8000)
-    print("Server listening on port 8000")
+    app.listen(8001)
+    print("Server listening on port 8001")
     tornado.ioloop.IOLoop.current().start()

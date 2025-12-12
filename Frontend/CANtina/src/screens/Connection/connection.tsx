@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import Header from "../../components/Header";
 import SideMenu from "../../components/SideMenu";
 import { useTheme } from "../../ThemeContext";
-import { useWebSocket } from "../../hooks/Websocket";
+import { useWS } from "../../hooks/WebsocketProvider";
 
 export default function ConnectionPage() {
   const { theme } = useTheme();
@@ -11,7 +11,7 @@ export default function ConnectionPage() {
   const [baudRate, setBaudRate] = useState(500000);
   const [termination, setTermination] = useState<"120Ω" | "None">("120Ω");
   const [connectStatus, setConnectStatus] = useState<string>("Not connected");
-  const { sendCommand } = useWebSocket("ws://localhost:8001/ws");
+  const { sendCommand } = useWS();
 
   const handleConnect = () => {
     sendCommand({
@@ -45,7 +45,7 @@ export default function ConnectionPage() {
           <h2 style={{ color: theme.primary }}>Connection Settings</h2>
 
           {/* Device Type */}
-          <label>
+          <label style={{ color: theme.textPrimary }}> 
             Device Type:
             <select
               value={deviceType}
@@ -58,7 +58,7 @@ export default function ConnectionPage() {
           </label>
 
           {/* Baud Rate */}
-            <label>
+            <label style={{ color: theme.textPrimary }}> 
             Baud Rate:
             <select
                 value={baudRate}

@@ -54,12 +54,12 @@ export default function CANFrameTable({ frames }: Props) {
           overflowY: "auto",
         }}
       >
-        {frames.map((f, i) => {
+        {frames.map((f) => {
           const pgn = (f.id >> 8) & 0xFFFF; // Simple J1939 PGN derivation
 
           return (
             <div
-              key={i}
+              key={f._seq}
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr 1fr repeat(8, 1fr)",

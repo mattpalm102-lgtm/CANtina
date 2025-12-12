@@ -6,7 +6,7 @@ import Header from "../../components/Header";
 
 export default function PythonIDE() {
   const { theme, isDark } = useTheme();
-  const [code, setCode] = useState(`# Example Python Script\nprint("Hello from CANtina!")\n`);
+  const [code, setCode] = useState(`# Example Python Script\nprint(read())\n`);
   const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
   const [isRunning, setIsRunning] = useState(false);
 
@@ -33,7 +33,7 @@ export default function PythonIDE() {
   const handleSave = async () => {
     try {
       const handle = await (window as any).showSaveFilePicker({
-        suggestedName: "script.py",
+        suggestedName: "user_script.py",
         types: [
           {
             description: "Python Script",
