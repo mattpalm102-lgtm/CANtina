@@ -42,8 +42,6 @@ https://www.peak-system.com/Drivers.523.0.html?&L=1
 ---
 
 ## Getting Started
-
-### Backend
 ```bash
 cd Backend
 pip install -r requirements.txt
