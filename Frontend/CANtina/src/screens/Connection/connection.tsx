@@ -8,7 +8,7 @@ import { useWS } from "../../hooks/WebsocketProvider";
 export default function ConnectionPage() {
   const { theme } = useTheme();
   const [deviceType, setDeviceType] = useState<"Peak" | "CANtina">("Peak");
-  const [baudRate, setBaudRate] = useState(500000);
+  const [baudRate, setBaudRate] = useState(250000);
   const [termination, setTermination] = useState<"120Ω" | "None">("120Ω");
   const [connectStatus, setConnectStatus] = useState<string>("Not connected");
   const { sendCommand } = useWS();

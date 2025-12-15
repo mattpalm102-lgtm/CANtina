@@ -13,6 +13,8 @@ clients = set()
 can_rx_thread = None
 can_rx_running = False
 main_io_loop = None
+CANDevice = None
+CAN_TX_LOCK = threading.Lock()
 FASTAPI_URL = "http://127.0.0.1:8000/frame"
 
 class MainHandler(tornado.web.RequestHandler):
@@ -23,12 +25,23 @@ class CANSendHandler(tornado.web.RequestHandler):
     def post(self):
         global CANDevice
 
+        print("Received CAN send request")
+
+        if CANDevice is None:
+            self.set_status(503)
+            print({"error": "CAN device not connected"})
+            return
+
         try:
             data = json.loads(self.request.body)
+            print(f"TX to CAN: {data}")
 
             can_id = int(data["id"])
             payload = data["data"]
             extended = data.get("ext", can_id > 0x7FF)
+
+            if not (0 <= len(payload) <= 8):
+                raise ValueError("Invalid CAN DLC")
 
             msg = can.Message(
                 arbitration_id=can_id,
@@ -36,13 +49,14 @@ class CANSendHandler(tornado.web.RequestHandler):
                 is_extended_id=extended,
             )
 
-            CANDevice.send(msg)
+            with CAN_TX_LOCK:
+                CANDevice.send(msg)
 
             self.write({"status": "sent"})
 
         except Exception as e:
             self.set_status(400)
-            self.write({"error": str(e)})
+            print({"error": str(e)})
 
 
 class CANWebSocket(tornado.websocket.WebSocketHandler):
@@ -51,7 +65,7 @@ class CANWebSocket(tornado.websocket.WebSocketHandler):
         clients.add(self)
 
     def on_message(self, message):
-        global can_rx_thread, can_rx_running
+        global can_rx_thread, can_rx_running, CANDevice
 
         print(f"Received message: {message}")
         msg = json.loads(message)
@@ -68,7 +82,7 @@ class CANWebSocket(tornado.websocket.WebSocketHandler):
 
                 CANDevice = connectDevice(
                     type=data.get("deviceType", "peak"),
-                    baud=data.get("baudRate", 500000),
+                    baud=data.get("baudRate", 250000),
                     termination=data.get("termination") == "120Ω"
                 )
 
@@ -83,7 +97,6 @@ class CANWebSocket(tornado.websocket.WebSocketHandler):
 
             except Exception as e:
                 print(f"Connection error: {e}")
-
 
     def on_close(self):
         global can_rx_running
