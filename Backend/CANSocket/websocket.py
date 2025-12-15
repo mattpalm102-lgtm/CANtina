@@ -25,8 +25,6 @@ class CANSendHandler(tornado.web.RequestHandler):
     def post(self):
         global CANDevice
 
-        print("Received CAN send request")
-
         if CANDevice is None:
             self.set_status(503)
             print({"error": "CAN device not connected"})
@@ -34,7 +32,6 @@ class CANSendHandler(tornado.web.RequestHandler):
 
         try:
             data = json.loads(self.request.body)
-            print(f"TX to CAN: {data}")
 
             can_id = int(data["id"])
             payload = data["data"]
@@ -51,8 +48,7 @@ class CANSendHandler(tornado.web.RequestHandler):
 
             with CAN_TX_LOCK:
                 CANDevice.send(msg)
-
-            self.write({"status": "sent"})
+                handle_can_frame(msg)  # echo back sent frame
 
         except Exception as e:
             self.set_status(400)
