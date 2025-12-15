@@ -3,7 +3,7 @@ import tornado.web
 import tornado.websocket
 import json
 from tornado.ioloop import PeriodicCallback
-from CANSocket.CANInterface import connectDevice, messageStub
+from CANSocket.CANInterface import connectDevice
 import threading
 import time
 import can
