@@ -1,34 +1,30 @@
 # Backend/ScriptRunner/CANtina.py
-from typing import List, Dict
+from typing import List
 import time
-import can
+from ScriptRunner import can_frames
+import requests
+FASTAPI_URL = "http://127.0.0.1:8000/read"
+TORNADO_SEND_URL = "http://127.0.0.1:8001/send"
 
-_can_bus_frames = []
 
-def inject_frame(frame: Dict):
-    """Internal: inject a frame into the bus (simulate incoming CAN frames)"""
-    _can_bus_frames.append(frame)
-
-def read() -> List[Dict]:
-    """Return all frames currently on the bus"""
-    return can.Message(arbitration_id=0x12345678, data=[0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88], is_extended_id=False)
+def read():
+    r = requests.get(FASTAPI_URL, timeout=0.2)
+    if r.status_code == 200:
+        return r.json()
+    return {"status": "error"}
 
 def write(can_id: int, data: List[int]):
-    """Send a CAN frame (simulated)"""
+    """Send a CAN frame (needs testing)"""
     frame = {
-        "timestamp": time.time(),
-        "can_id": can_id,
-        "data": data
+        "id": can_id,
+        "data": data,
+        "ext": can_id > 0x7FF,
     }
-    _can_bus_frames.append(frame)
-    return frame
 
-def log(filename: str):
-    """Save current frames to a file"""
-    import json
-    with open(filename, "w") as f:
-        json.dump(_can_bus_frames, f)
-
-def clear():
-    """Clear all frames"""
-    _can_bus_frames.clear()
+    try:
+        r = requests.post(TORNADO_SEND_URL, json=frame, timeout=0.2)
+        r.raise_for_status()
+        return True
+    except requests.RequestException as e:
+        print("CAN send failed:", e)
+        return False

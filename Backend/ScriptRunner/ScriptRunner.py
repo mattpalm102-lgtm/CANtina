@@ -5,8 +5,13 @@ import subprocess
 import sys
 import tempfile
 import os
+from typing import Dict
+from collections import deque
 
 app = FastAPI()
+
+CAN_BUFFER_SIZE = 5000
+can_frames = deque(maxlen=CAN_BUFFER_SIZE)
 
 app.add_middleware(
     CORSMiddleware,
@@ -29,8 +34,7 @@ def run_script(script: Script):
         full_code = f"""
 import sys
 sys.path.insert(0, r"{runner_dir}")
-from CANtina import read, write, inject_frame, clear, log
-
+from CANtina import read, write
 {user_code}
 """
 
@@ -66,3 +70,14 @@ from CANtina import read, write, inject_frame, clear, log
                 os.remove(file_path)
             except Exception as e:
                 print(f"Failed to delete temp script {file_path}: {e}")
+
+@app.post("/frame")
+def ingest_frame(frame: Dict):
+    can_frames.append(frame)
+    return {"status": "ok"}
+
+@app.get("/read")
+def read_frame():
+    if can_frames:
+        return can_frames.popleft()
+    return {"status": "empty"}

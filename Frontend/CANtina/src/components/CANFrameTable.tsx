@@ -55,7 +55,14 @@ export default function CANFrameTable({ frames }: Props) {
         }}
       >
         {frames.map((f) => {
-          const pgn = (f.id >> 8) & 0xFFFF; // Simple J1939 PGN derivation
+          const pf = (f.id >> 16) & 0xFF;
+          const ps = (f.id >> 8) & 0xFF;
+          const dp = (f.id >> 24) & 0x01;
+
+          const pgn =
+            pf < 240
+              ? (dp << 16) | (pf << 8)        // PDU1
+              : (dp << 16) | (pf << 8) | ps;  // PDU2
 
           return (
             <div
@@ -70,12 +77,12 @@ export default function CANFrameTable({ frames }: Props) {
               }}
             >
               <div>{f.timestamp.toFixed(3)}</div>
-              <div>{pgn}</div>
-              <div>{f.id.toString(16).toUpperCase()}</div>
+              <div>{`0x${pgn.toString(16).toUpperCase().padStart(4, "0")}`}</div>
+              <div>{`0x${f.id.toString(16).toUpperCase().padStart(8, "0")}`}</div>
 
               {f.data.map((byte, j) => (
                 <div key={j}>
-                  {byte.toString(16).toUpperCase().padStart(2, "0")}
+                  {`0x${byte.toString(16).toUpperCase().padStart(2, "0")}`}
                 </div>
               ))}
             </div>
