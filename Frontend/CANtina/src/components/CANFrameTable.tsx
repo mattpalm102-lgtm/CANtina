@@ -1,13 +1,81 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTheme } from "../ThemeContext";
 import type { CANFrame } from "../hooks/Websocket";
 
 interface Props {
   frames: CANFrame[];
+  autoScroll?: boolean;
+  viewMode?: "stream" | "latest";
 }
 
-export default function CANFrameTable({ frames }: Props) {
+export default function CANFrameTable({
+  frames,
+  autoScroll,
+  viewMode = "stream",
+}: Props) {
   const { theme } = useTheme();
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (viewMode !== "latest") {
+      setFlashMap(new Map());
+      prevFramesRef.current.clear();
+    }
+  }, [viewMode]);
+
+  useEffect(() => {
+    if (autoScroll && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [frames, autoScroll]);
+
+  const prevFramesRef = useRef<Map<number, CANFrame>>(new Map());
+
+  const [flashMap, setFlashMap] = useState<
+    Map<string, number>
+  >(new Map());
+
+  useEffect(() => {
+    if (viewMode !== "latest") return;
+
+    const now = Date.now();
+    const newFlash = new Map(flashMap);
+
+    for (const f of frames) {
+      const prev = prevFramesRef.current.get(f.id);
+      if (!prev) continue;
+
+      f.data.forEach((byte, i) => {
+        if (byte !== prev.data[i]) {
+          newFlash.set(`${f.id}-${i}`, now);
+        }
+      });
+    }
+
+    setFlashMap(newFlash);
+
+    for (const f of frames) {
+      prevFramesRef.current.set(f.id, f);
+    }
+  }, [frames, viewMode]);
+
+  useEffect(() => {
+    if (flashMap.size === 0) return;
+
+    const timer = setTimeout(() => {
+      const cutoff = Date.now() - 1000;
+
+      setFlashMap((prev) => {
+        const next = new Map(prev);
+        for (const [key, ts] of next) {
+          if (ts < cutoff) next.delete(key);
+        }
+        return next;
+      });
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [flashMap]);
 
   return (
     <div
@@ -21,8 +89,6 @@ export default function CANFrameTable({ frames }: Props) {
         overflow: "hidden",
       }}
     >
-
-      {/* Header Row */}
       <div
         style={{
           display: "grid",
@@ -47,22 +113,22 @@ export default function CANFrameTable({ frames }: Props) {
         ))}
       </div>
 
-      {/* Frame List */}
       <div
+        ref={scrollRef}
         style={{
           flex: 1,
           overflowY: "auto",
         }}
       >
         {frames.map((f) => {
-          const pf = (f.id >> 16) & 0xFF;
-          const ps = (f.id >> 8) & 0xFF;
+          const pf = (f.id >> 16) & 0xff;
+          const ps = (f.id >> 8) & 0xff;
           const dp = (f.id >> 24) & 0x01;
 
           const pgn =
             pf < 240
-              ? (dp << 16) | (pf << 8)        // PDU1
-              : (dp << 16) | (pf << 8) | ps;  // PDU2
+              ? (dp << 16) | (pf << 8)
+              : (dp << 16) | (pf << 8) | ps;
 
           return (
             <div
@@ -77,14 +143,41 @@ export default function CANFrameTable({ frames }: Props) {
               }}
             >
               <div>{f.timestamp.toFixed(3)}</div>
-              <div>{`0x${pgn.toString(16).toUpperCase().padStart(4, "0")}`}</div>
-              <div>{`0x${f.id.toString(16).toUpperCase().padStart(8, "0")}`}</div>
+              <div>{`0x${pgn
+                .toString(16)
+                .toUpperCase()
+                .padStart(4, "0")}`}</div>
+              <div>{`0x${f.id
+                .toString(16)
+                .toUpperCase()
+                .padStart(8, "0")}`}</div>
 
-              {f.data.map((byte, j) => (
-                <div key={j}>
-                  {`0x${byte.toString(16).toUpperCase().padStart(2, "0")}`}
-                </div>
-              ))}
+              {f.data.map((byte, i) => {
+                const flashKey = `${f.id}-${i}`;
+                const flashTs = flashMap.get(flashKey);
+                const age = flashTs ? Date.now() - flashTs : Infinity;
+                const alpha =
+                  age < 1000 ? 1 - age / 1000 : 0;
+
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      backgroundColor:
+                        alpha > 0
+                          ? `rgba(255,255,255,${0.35 * alpha})`
+                          : "transparent",
+                      transition: "background-color 100ms linear",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    {`0x${byte
+                      .toString(16)
+                      .toUpperCase()
+                      .padStart(2, "0")}`}
+                  </div>
+                );
+              })}
             </div>
           );
         })}

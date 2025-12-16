@@ -18,16 +18,24 @@ export function useWebSocket(url: string) {
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
-    ws.onmessage = (event) => {
+    ws.onmessage = async (event) => {
       try {
         const msg = JSON.parse(event.data);
-        // Handle CAN frames
-        if (msg.command === "can_frame") {
-          const frame: CANFrame = msg.data;
-          setFrames(prev => [
-            ...prev,
-            { ...frame, _seq: seq++ }
-          ]);
+        switch (msg.command) {
+          case "can_frame":
+            const frame: CANFrame = msg.data;
+            setFrames(prev => [
+              ...prev,
+              { ...frame, _seq: seq++ }
+            ]);
+            break;
+          case "log_data":
+            await handleLogData(msg.data);
+            break;
+
+          default:
+            console.warn("Unknown WS message:", msg);
+            break;
         }
 
         // Handle responses / status messages if needed
@@ -53,4 +61,32 @@ export function useWebSocket(url: string) {
   }
 
   return { frames, sendCommand };
+}
+
+async function handleLogData(data: {
+  filename: string;
+  csv: string;
+}) {
+  if (!data.csv) {
+    console.warn("Received empty log");
+    return;
+  }
+
+  const blob = new Blob([data.csv], {
+    type: "text/csv",
+  });
+
+  const handle = await (window as any).showSaveFilePicker({
+    suggestedName: data.filename ?? "cantina_log.csv",
+    types: [
+      {
+        description: "CSV Files",
+        accept: { "text/csv": [".csv"] },
+      },
+    ],
+  });
+
+  const writable = await handle.createWritable();
+  await writable.write(blob);
+  await writable.close();
 }

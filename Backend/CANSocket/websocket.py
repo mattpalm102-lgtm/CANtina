@@ -8,6 +8,9 @@ import threading
 import time
 import can
 import requests
+import tempfile
+import os
+import csv
 
 clients = set()
 can_rx_thread = None
@@ -16,6 +19,66 @@ main_io_loop = None
 CANDevice = None
 CAN_TX_LOCK = threading.Lock()
 FASTAPI_URL = "http://127.0.0.1:8000/frame"
+logging = False
+log_manager = None
+
+
+class TempCSVLogger:
+    def __init__(self):
+        self.file = None
+        self.writer = None
+        self.path = None
+
+    def start(self):
+        if self.file:
+            return
+
+        self.file = tempfile.NamedTemporaryFile(
+            mode="w",
+            newline="",
+            suffix=".csv",
+            delete=False
+        )
+        self.path = self.file.name
+
+        self.writer = csv.writer(self.file)
+        self.writer.writerow([
+            "Timestamp",
+            "CAN_ID",
+            "D0","D1","D2","D3","D4","D5","D6","D7"
+        ])
+
+        print(f"[LOG] Started temp log: {self.path}")
+
+    def stop(self):
+        if self.file:
+            self.file.flush()
+            self.file.close()
+            self.file = None
+            self.writer = None
+            print("[LOG] Stopped logging")
+
+    def write_frame(self, msg: can.Message):
+        if not self.writer:
+            return
+
+        self.writer.writerow([
+            f"{msg.timestamp:.6f}",
+            f"0x{msg.arbitration_id:X}",
+            *[f"0x{b:02X}" for b in msg.data]
+        ])
+
+    def read_all(self) -> str:
+        if not self.path or not os.path.exists(self.path):
+            return ""
+
+        with open(self.path, "r") as f:
+            return f.read()
+
+    def cleanup(self):
+        if self.path and os.path.exists(self.path):
+            os.remove(self.path)
+            print("[LOG] Temp log deleted")
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
@@ -61,7 +124,7 @@ class CANWebSocket(tornado.websocket.WebSocketHandler):
         clients.add(self)
 
     def on_message(self, message):
-        global can_rx_thread, can_rx_running, CANDevice
+        global can_rx_thread, can_rx_running, CANDevice, logging
 
         print(f"Received message: {message}")
         msg = json.loads(message)
@@ -94,6 +157,31 @@ class CANWebSocket(tornado.websocket.WebSocketHandler):
             except Exception as e:
                 print(f"Connection error: {e}")
 
+        elif msg.get("command") == "start_log":
+            logging = True
+            log_manager.start()
+
+        elif msg.get("command") == "stop_log":
+            logging = False
+            log_manager.stop()
+
+        elif msg.get("command") == "save_log":
+            csv_data = log_manager.read_all()
+
+            response = {
+                "command": "log_data",
+                "data": {
+                    "filename": "cantina_log.csv",
+                    "csv": csv_data,
+                }
+            }
+
+            send_to_frontend(response)
+
+        elif msg.get("command") == "replay_log":
+            csv_text = msg.get("csv", "")
+            print(f"[REPLAY] Received CSV ({len(csv_text)} bytes)")
+
     def on_close(self):
         global can_rx_running
 
@@ -123,6 +211,11 @@ def can_rx_loop(bus: can.Bus, on_frame):
             time.sleep(0.1)
 
 def handle_can_frame(msg: can.Message):
+    global logging
+
+    if logging:
+        log_manager.write_frame(msg)
+
     payload = {
         "command": "can_frame",
         "data": {
@@ -180,11 +273,16 @@ def make_app():
     ])
 
 def set_main_io_loop(loop):
-    global main_io_loop
+    global main_io_loop, log_manager
     main_io_loop = loop
+    log_manager = TempCSVLogger()
 
 if __name__ == "__main__":
     app = make_app()
     app.listen(8001)
     print("Server listening on port 8001")
     tornado.ioloop.IOLoop.current().start()
+
+
+import atexit
+atexit.register(log_manager.cleanup if log_manager else lambda: None)
