@@ -1,30 +1,71 @@
 // ConnectionPage.tsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Header from "../../components/Header";
 import SideMenu from "../../components/SideMenu";
 import { useTheme } from "../../ThemeContext";
 import { useWS } from "../../hooks/WebsocketProvider";
 
+const STORAGE_KEY = "connection_page_state";
+
 export default function ConnectionPage() {
   const { theme } = useTheme();
-  const [deviceType, setDeviceType] = useState<"Peak" | "CANtina">("Peak");
-  const [baudRate, setBaudRate] = useState(250000);
-  const [termination, setTermination] = useState<"120Ω" | "None">("120Ω");
-  const [connectStatus, setConnectStatus] = useState<string>("Not connected");
   const { sendCommand } = useWS();
 
   const handleConnect = () => {
+    setConnectStatus(`Connected to ${deviceType} @ ${baudRate}`);
+    setIsConnected(true);
+
     sendCommand({
-    command: "Connection",
-    data: {
-        type: "connect",
+      command: "Connection",
+      data: {
         deviceType,
         baudRate,
-        termination: deviceType === "CANtina" ? termination : undefined,
-    }
+        termination,
+      },
     });
-    setConnectStatus(`Connected to ${deviceType} at ${baudRate} baud`);
   };
+
+  const handleDisconnect = () => {
+    setConnectStatus("Not connected");
+    setIsConnected(false);
+
+    sendCommand({
+      command: "Disconnect",
+      data: {},
+    });
+  };
+
+  const savedState = sessionStorage.getItem(STORAGE_KEY);
+  const initial = savedState ? JSON.parse(savedState) : {};
+
+  const [deviceType, setDeviceType] = useState<"Peak" | "CANtina">(
+    initial.deviceType ?? "Peak"
+  );
+  const [baudRate, setBaudRate] = useState<number>(
+    initial.baudRate ?? 250000
+  );
+  const [termination, setTermination] = useState<"120Ω" | "None">(
+    initial.termination ?? "None"
+  );
+  const [connectStatus, setConnectStatus] = useState<string>(
+    initial.connectStatus ?? "Not connected"
+  );
+  const [isConnected, setIsConnected] = useState<boolean>(
+    initial.isConnected ?? false
+  );
+
+  useEffect(() => {
+    sessionStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        deviceType,
+        baudRate,
+        termination,
+        connectStatus,
+        isConnected,
+      })
+    );
+  }, [deviceType, baudRate, termination, connectStatus, isConnected]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>

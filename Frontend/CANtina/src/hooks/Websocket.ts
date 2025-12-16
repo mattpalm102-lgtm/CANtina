@@ -5,7 +5,7 @@ export interface CANFrame {
   dlc: number;
   data: number[];
   timestamp: number;
-  _seq?: number;
+  _seq: number;
 }
 
 let seq = 0;

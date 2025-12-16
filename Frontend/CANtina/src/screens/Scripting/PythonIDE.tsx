@@ -3,12 +3,30 @@ import Editor, { loader } from "@monaco-editor/react";
 import { useTheme } from "../../ThemeContext";
 import Header from "../../components/Header";
 
+const DEFAULT_CODE = `# Example Python Script\nprint(read())\n`;
 
 export default function PythonIDE() {
   const { theme, isDark } = useTheme();
-  const [code, setCode] = useState(`# Example Python Script\nprint(read())\n`);
-  const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
   const [isRunning, setIsRunning] = useState(false);
+
+  const [code, setCode] = useState(
+    () => sessionStorage.getItem("python_code") ?? DEFAULT_CODE
+  );
+
+  useEffect(() => {
+    sessionStorage.setItem("python_code", code);
+  }, [code]);
+
+  const [consoleOutput, setConsoleOutput] = useState<string[]>(
+    () => JSON.parse(sessionStorage.getItem("python_console") ?? "[]")
+  );
+
+  useEffect(() => {
+    sessionStorage.setItem(
+      "python_console",
+      JSON.stringify(consoleOutput)
+    );
+  }, [consoleOutput]);
 
   const handleRun = async () => {
     setConsoleOutput(prev => [...prev, "Running script..."]);
