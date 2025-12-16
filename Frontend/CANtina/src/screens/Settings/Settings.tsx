@@ -1,26 +1,28 @@
 import React, { useEffect, useState } from "react";
 import Header from "../../components/Header";
 import { useTheme } from "../../ThemeContext";
+import { useSettings } from "./SettingsContext";
 
 export default function SettingsPage() {
-  const { theme, isDark, toggleTheme } = useTheme();
-  const [selectedTheme, setSelectedTheme] = useState(isDark ? "dark" : "light");
-
-  // Sync local state if theme changes elsewhere
-  useEffect(() => {
-    setSelectedTheme(isDark ? "dark" : "light");
-  }, [isDark]);
+  const { theme } = useTheme();
+  const { settings, setTheme } = useSettings();
 
   const handleThemeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    setSelectedTheme(value);
-    toggleTheme();
+    setTheme(e.target.value as "dark" | "light");
   };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <Header />
-      <div style={{ display: "flex", flex: 1, justifyContent: "center", padding: "16px" }}>
+
+      <div
+        style={{
+          display: "flex",
+          flex: 1,
+          justifyContent: "center",
+          padding: "16px",
+        }}
+      >
         <div
           style={{
             display: "flex",
@@ -35,11 +37,22 @@ export default function SettingsPage() {
         >
           <h2 style={{ color: theme.primary }}>App Settings</h2>
 
-          <label style={{ display: "flex", flexDirection: "column", gap: "4px", color: theme.textPrimary }}>
+          <label
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "4px",
+              color: theme.textPrimary,
+            }}
+          >
             Theme:
-            <select value={selectedTheme} onChange={handleThemeChange} style={{ padding: "8px" }}>
-              <option value="light">Light</option>
+            <select
+              value={settings.theme}
+              onChange={handleThemeChange}
+              style={{ width: "100%", padding: "8px", marginTop: "4px" }}
+            >
               <option value="dark">Dark</option>
+              <option value="light">Light</option>
             </select>
           </label>
         </div>
